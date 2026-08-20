@@ -384,6 +384,7 @@ button{font:inherit;color:inherit}
 .assembly-sticky{position:sticky;top:0;height:100svh;overflow:clip}
 
 .render-stage{
+  --shellfit:none;
   position:absolute;inset:0;display:grid;align-items:center;
   grid-template-columns:minmax(300px,.82fr) minmax(420px,1.18fr);
   width:min(var(--shell),calc(100% - var(--gut) * 2));margin-inline:auto;
@@ -633,17 +634,22 @@ body.hover .cursor{width:74px;height:74px}
   .material-stack .material-card{height:clamp(260px,32vw,360px)}
   .pstep{grid-template-columns:64px 1fr}
   .pstep p{grid-column:2}
-  /* assembly: head on top, render centred in the space that is left */
+  /* assembly: head on top, render fills whatever vertical space is left.
+     minmax(0,1fr) lets the row actually shrink; sizeShell() in the script
+     measures that row and sets the width, so the 717:983 ratio the piece
+     percentages depend on is never broken. */
   .assembly{height:400vh}
   .render-stage{
-    grid-template-columns:1fr;grid-template-rows:auto 1fr;
-    align-items:center;justify-items:center;
-    padding:clamp(92px,13vh,120px) 0 clamp(132px,17vh,158px);
+    --shellfit:stacked;
+    grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);
+    align-items:stretch;justify-items:center;
+    gap:clamp(10px,1.8vh,22px);
+    padding:clamp(88px,12vh,116px) 0 clamp(122px,15vh,150px);
   }
   .assembly-head{grid-row:1;grid-column:1;max-width:60ch;justify-self:start}
   .render-shell{
-    grid-row:2;grid-column:1;align-self:center;
-    width:min(430px,64vw,calc((100svh - 300px) * 0.7294));
+    grid-row:2;grid-column:1;align-self:center;justify-self:center;
+    width:min(430px,64vw);
   }
   .assembly-dots{display:none}
   .assembly-sticky::after{
@@ -659,18 +665,40 @@ body.hover .cursor{width:74px;height:74px}
   .tour-copy{max-width:none;right:var(--gut);bottom:clamp(72px,12vh,96px)}
   .tour-progress{left:var(--gut);right:auto;bottom:clamp(32px,5vh,44px)}
   .assembly{height:360vh}
-  .render-stage{padding:clamp(78px,11vh,104px) 0 clamp(148px,19vh,172px)}
-  .render-shell{width:min(320px,74vw,calc((100svh - 268px) * 0.7294))}
-  .assembly-note{max-width:none;right:var(--gut);bottom:clamp(58px,8.5vh,76px)}
-  .assembly-note h3{font-size:clamp(24px,6.4vw,30px)}
-  .assembly-meter{left:var(--gut);right:auto;width:min(190px,50vw);bottom:clamp(22px,3.4vh,30px)}
-  .assembly-sticky::after{height:150px}
+  .render-stage{padding:clamp(70px,9.5vh,92px) 0 clamp(112px,14vh,136px)}
+  /* the static intro paragraph goes (not the eyebrow); the per-stage note below
+     keeps narrating and the render gets the height back */
+  .assembly-head p:not(.eyebrow){display:none}
+  .assembly-head h2{margin-bottom:0}
+  .render-shell{width:min(340px,88vw)}
+  .assembly-note{max-width:none;right:var(--gut);bottom:clamp(56px,8vh,72px)}
+  .assembly-note h3{font-size:clamp(23px,6.2vw,29px)}
+  .assembly-note p{font-size:11.5px;line-height:1.5}
+  .assembly-meter{left:var(--gut);right:auto;width:min(190px,50vw);bottom:clamp(20px,3.2vh,28px)}
+  .assembly-sticky::after{height:112px}
   .material-stack{grid-template-columns:1fr}
   .form .row{grid-template-columns:1fr}
   .contact-facts div{grid-template-columns:1fr;gap:2px}
   .cursor,.cursor-dot{display:none}
   footer{flex-direction:column;gap:12px}
 }
+/* tablet/laptop deitado: largura sobra, altura não. Volta para duas colunas
+   em vez de empilhar, senão o render fica minúsculo. */
+@media (min-width:700px) and (max-width:1180px) and (orientation:landscape){
+  .render-stage{
+    --shellfit:split;
+    grid-template-columns:minmax(240px,.85fr) minmax(280px,1.15fr);
+    grid-template-rows:minmax(0,1fr);
+    align-items:center;justify-items:center;
+    gap:clamp(16px,3vw,40px);
+    padding:clamp(76px,10vh,104px) 0 clamp(64px,8vh,88px);
+  }
+  .assembly-head{grid-row:1;grid-column:1;align-self:center;justify-self:start;max-width:42ch}
+  .assembly-head p:not(.eyebrow){display:block}
+  .render-shell{grid-row:1;grid-column:2;align-self:center;justify-self:center}
+  .assembly-sticky::after{display:none}
+}
+
 @media (hover:none){.cursor,.cursor-dot{display:none}}
 
 @media (prefers-reduced-motion:reduce){
@@ -954,8 +982,37 @@ const lowPower=(navigator.hardwareConcurrency||8)<=4||(navigator.deviceMemory||8
    ============================================================ */
 const L={vh:0,doc:0,tourTop:0,tourMax:1,asmTop:0,asmMax:1,shellW:0,shellH:0};
 const tour=qs('#tour'),assembly=qs('#montagem'),shell=qs('#renderShell'),heroMedia=qs('#heroMedia');
+const stage=qs('.render-stage'),head=qs('.assembly-head');
+const asmNoteEl=qs('.assembly-note'),asmMeterEl=qs('.assembly-meter');
+const RATIO=717/983;
+// Below the desktop breakpoint the render sits under the headline, so how tall
+// it may be depends on how tall that headline wrapped. Guessing it in CSS is
+// what let the cabinet run under the stage caption; measure the row instead.
+function sizeShell(){
+  const cs=getComputedStyle(stage);
+  const fit=cs.getPropertyValue('--shellfit').trim();
+  if(fit==='none'){shell.style.width='';shell.style.marginBottom='';return}
+  const H=stage.clientHeight,padT=parseFloat(cs.paddingTop),padB=parseFloat(cs.paddingBottom);
+  const stageTop=stage.getBoundingClientRect().top;
+  // caption and meter are pinned to the bottom of the sticky and can outgrow the
+  // padding reserved for them on short screens — measure them instead of guessing
+  const uiTop=Math.min(asmNoteEl.getBoundingClientRect().top,asmMeterEl.getBoundingClientRect().top)-stageTop;
+  const stacked=fit==='stacked';
+  const reserve=stacked?Math.max(padB,H-uiTop+12):padB;
+  let avail=H-padT-reserve;
+  let maxW;
+  if(stacked){
+    avail-=head.offsetHeight+(parseFloat(cs.rowGap)||0);
+    maxW=stage.clientWidth*(innerWidth<=680?.94:.86);
+  }else{
+    maxW=stage.clientWidth*.5;
+  }
+  shell.style.width=Math.round(Math.max(150,Math.min(maxW,avail*RATIO)))+'px';
+  shell.style.marginBottom=stacked?Math.round(Math.max(0,reserve-padB))+'px':'';
+}
 function measure(){
   L.vh=innerHeight;
+  sizeShell();
   L.doc=Math.max(1,document.documentElement.scrollHeight-L.vh);
   const t=tour.getBoundingClientRect(),a=assembly.getBoundingClientRect(),y=scrollY;
   L.tourTop=t.top+y; L.tourMax=Math.max(1,tour.offsetHeight-L.vh);
