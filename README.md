@@ -16,7 +16,7 @@ vercel.json    headers de segurança, cache e clean URLs
 ## Deploy
 
 Qualquer push na branch `main` publica automaticamente na Vercel.
-Não há dependências, nem `npm install`, nem etapa de build. Producao: https://estylize-moveis.vercel.app
+Não há dependências, nem `npm install`, nem etapa de build.
 
 ## Seção "Montagem do armário"
 
@@ -34,7 +34,7 @@ recalculada a cada resize. Se o render for trocado, esses 4 pontos e o
 ## Pontos de manutenção
 
 - **WhatsApp**: constante `WHATS` no script (final do `index.html`) e os links
-  `wa.me` no corpo. Hoje: `5547984590669`.
+  `wa.me` no corpo. Hoje: `5547933885458`.
 - **Domínio**: `canonical`, Open Graph, `sitemap.xml`, `robots.txt` e o
   `@id`/`sameAs` do JSON-LD apontam para o domínio de produção.
 - **Fotos**: as imagens de ambiente vêm do Unsplash via URL. Ao trocar por
