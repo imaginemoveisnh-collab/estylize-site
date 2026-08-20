@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://estylize-moveis.vercel.app/sitemap.xml
