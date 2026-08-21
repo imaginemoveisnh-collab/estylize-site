@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://estylize-moveis.vercel.app/sitemap.xml
+Sitemap: https://estylizemoveis.com.br/sitemap.xml
